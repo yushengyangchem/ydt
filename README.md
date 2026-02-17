@@ -4,7 +4,13 @@ A simple [Youdao](https://www.youdao.com/) dict tool.
 
 ## Installation
 
-To install and run the `ydt`, use the following [Nix](https://nixos.org/) command:
+Install `ydt` with Cargo:
+
+```bash
+cargo install ydt
+```
+
+Or use the following [Nix](https://nixos.org/) command to install and run directly:
 
 ```bash
 nix run . -- <WORD>
