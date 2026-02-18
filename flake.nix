@@ -39,23 +39,13 @@
           ...
         }:
         {
-          packages.ydt =
-            let
-              naersk' = pkgs.callPackage naersk { };
-            in
-            naersk'.buildPackage {
-              src = ./.;
-              doCheck = true;
-            };
-
+          packages.ydt = pkgs.callPackage ./default.nix { inherit naersk; };
           packages.default = self'.packages.ydt;
-
           apps.ydt = {
             type = "app";
             program = "${self'.packages.ydt}/bin/ydt";
           };
           apps.default = self'.apps.ydt;
-
           devShells.default = pkgs.mkShell {
             inputsFrom = [
               config.pre-commit.devShell
