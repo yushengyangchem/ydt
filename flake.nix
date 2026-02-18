@@ -43,7 +43,10 @@
             let
               naersk' = pkgs.callPackage naersk { };
             in
-            naersk'.buildPackage { src = ./.; };
+            naersk'.buildPackage {
+              src = ./.;
+              doCheck = true;
+            };
 
           packages.default = self'.packages.ydt;
 
