@@ -23,3 +23,14 @@ To use the `ydt` for looking up a word, use the following command:
 ```bash
 ydt <WORD>
 ```
+
+## Library
+
+`ydt` can also be used as a library:
+
+```rust
+match ydt::get_translation("hello") {
+    Ok(text) => println!("{text}"),
+    Err(err) => eprintln!("{err}"),
+}
+```

@@ -14,7 +14,8 @@ fn parses_english_word_result() {
     </div>
     "#;
 
-    let output = ydt::parse_translation_from_html("hello", html);
+    let output = ydt::parse_translation_from_html("hello", html)
+        .expect("expected english translation to parse");
     assert_eq!(output, "英 /həˈləʊ/\nint.: 你好");
 }
 
@@ -29,6 +30,7 @@ fn parses_chinese_word_result() {
     </li>
     "#;
 
-    let output = ydt::parse_translation_from_html("学习", html);
+    let output = ydt::parse_translation_from_html("学习", html)
+        .expect("expected chinese translation to parse");
     assert_eq!(output, "study\nlearn");
 }
