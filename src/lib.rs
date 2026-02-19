@@ -1,3 +1,7 @@
+//! `ydt` library API.
+//!
+//! This crate provides a simple way to fetch and parse translations from Youdao.
+
 use reqwest::blocking::{Client, Response};
 use reqwest::StatusCode;
 use reqwest::Url;
@@ -26,6 +30,7 @@ static POS_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
 static TRANS_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
 
 #[derive(Debug)]
+/// Error type returned by `ydt` public APIs.
 pub enum YdtError {
     CreateHttpClient(reqwest::Error),
     BuildRequestUrl(url::ParseError),
@@ -128,6 +133,29 @@ fn cached_selector(
     }
 }
 
+/// Parse translation text from a Youdao result HTML fragment.
+///
+/// This function does not perform network I/O.
+///
+/// # Examples
+///
+/// ```
+/// let html = r#"
+/// <div class="trans-container">
+///   <div class="per-phone">
+///     <span>英</span><span class="phonetic">/həˈləʊ/</span>
+///   </div>
+/// </div>
+/// <div class="trans-container">
+///   <li class="word-exp">
+///     <span class="pos">int.</span>
+///     <span class="trans">你好</span>
+///   </li>
+/// </div>
+/// "#;
+/// let out = ydt::parse_translation_from_html("hello", html).unwrap();
+/// assert_eq!(out, "英 /həˈləʊ/\nint.: 你好");
+/// ```
 pub fn parse_translation_from_html(word: &str, html: &str) -> Result<String, YdtError> {
     let document = Html::parse_document(html);
     let mut translations = Vec::new();
@@ -194,6 +222,12 @@ pub fn parse_translation_from_html(word: &str, html: &str) -> Result<String, Ydt
     }
 }
 
+/// Fetch translation for a word from Youdao and return normalized display text.
+///
+/// # Errors
+///
+/// Returns [`YdtError`] when request building, HTTP request, HTTP status validation,
+/// response reading, or selector parsing fails.
 pub fn get_translation(word: &str) -> Result<String, YdtError> {
     let response = fetch_with_fallback(word)?;
     let html = response.text().map_err(YdtError::ReadResponse)?;
