@@ -2,6 +2,8 @@ use reqwest::blocking::{Client, Response};
 use reqwest::StatusCode;
 use reqwest::Url;
 use scraper::{Html, Selector};
+use std::error::Error;
+use std::fmt;
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -14,15 +16,51 @@ const BROWSER_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
 const YOUDAO_RESULT_URL: &str = "https://www.youdao.com/result";
 
-static WORD_EXP_CE_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static POINT_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static TRANS_CONTAINER_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static PHONE_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static SPAN_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static PHONETIC_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static WORD_EXP_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static POS_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
-static TRANS_SELECTOR: OnceLock<Result<Selector, String>> = OnceLock::new();
+static WORD_EXP_CE_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static POINT_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static TRANS_CONTAINER_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static PHONE_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static SPAN_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static PHONETIC_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static WORD_EXP_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static POS_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+static TRANS_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();
+
+#[derive(Debug)]
+pub enum YdtError {
+    CreateHttpClient(reqwest::Error),
+    BuildRequestUrl(url::ParseError),
+    FetchTranslation(reqwest::Error),
+    HttpStatus(StatusCode),
+    ReadResponse(reqwest::Error),
+    ParseCssSelector(&'static str),
+}
+
+impl fmt::Display for YdtError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CreateHttpClient(err) => write!(f, "Failed to create HTTP client: {err}"),
+            Self::BuildRequestUrl(err) => write!(f, "Failed to build request URL: {err}"),
+            Self::FetchTranslation(err) => write!(f, "Failed to fetch translation: {err}"),
+            Self::HttpStatus(status) => write!(f, "Request failed with status: {status}"),
+            Self::ReadResponse(err) => write!(f, "Failed to read response: {err}"),
+            Self::ParseCssSelector(css) => write!(f, "Failed to parse CSS selector: {css}"),
+        }
+    }
+}
+
+impl Error for YdtError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::CreateHttpClient(err) => Some(err),
+            Self::BuildRequestUrl(err) => Some(err),
+            Self::FetchTranslation(err) => Some(err),
+            Self::ReadResponse(err) => Some(err),
+            Self::HttpStatus(_) => None,
+            Self::ParseCssSelector(_) => None,
+        }
+    }
+}
 
 fn contains_cjk_ideograph(text: &str) -> bool {
     text.chars().any(|ch| {
@@ -39,34 +77,31 @@ fn contains_cjk_ideograph(text: &str) -> bool {
     })
 }
 
-fn build_client(user_agent: &str) -> Result<Client, String> {
+fn build_client(user_agent: &str) -> Result<Client, YdtError> {
     Client::builder()
         .user_agent(user_agent)
         .timeout(Duration::from_secs(10))
         .build()
-        .map_err(|_| "Failed to create HTTP client.".to_string())
+        .map_err(YdtError::CreateHttpClient)
 }
 
-fn send_with_ua(word: &str, user_agent: &str) -> Result<Response, String> {
+fn send_with_ua(word: &str, user_agent: &str) -> Result<Response, YdtError> {
     let client = build_client(user_agent)?;
     let url = Url::parse_with_params(YOUDAO_RESULT_URL, &[("word", word), ("lang", "en")])
-        .map_err(|_| "Failed to build request URL.".to_string())?;
-    client
-        .get(url)
-        .send()
-        .map_err(|_| "Failed to fetch translation.".to_string())
+        .map_err(YdtError::BuildRequestUrl)?;
+    client.get(url).send().map_err(YdtError::FetchTranslation)
 }
 
-fn ensure_success_response(response: Response) -> Result<Response, String> {
+fn ensure_success_response(response: Response) -> Result<Response, YdtError> {
     let status = response.status();
     if status.is_success() {
         Ok(response)
     } else {
-        Err(format!("Request failed with status: {status}"))
+        Err(YdtError::HttpStatus(status))
     }
 }
 
-fn fetch_with_fallback(word: &str) -> Result<Response, String> {
+fn fetch_with_fallback(word: &str) -> Result<Response, YdtError> {
     match send_with_ua(word, PROJECT_USER_AGENT) {
         Ok(resp) => {
             let status = resp.status();
@@ -85,32 +120,24 @@ fn fetch_with_fallback(word: &str) -> Result<Response, String> {
 }
 
 fn cached_selector(
-    cache: &'static OnceLock<Result<Selector, String>>,
+    cache: &'static OnceLock<Result<Selector, YdtError>>,
     css: &'static str,
-) -> Result<&'static Selector, String> {
-    match cache.get_or_init(|| {
-        Selector::parse(css).map_err(|_| format!("Failed to parse CSS selector: {css}"))
-    }) {
+) -> Result<&'static Selector, YdtError> {
+    match cache.get_or_init(|| Selector::parse(css).map_err(|_| YdtError::ParseCssSelector(css))) {
         Ok(selector) => Ok(selector),
-        Err(err) => Err(err.clone()),
+        Err(_) => Err(YdtError::ParseCssSelector(css)),
     }
 }
 
-pub fn parse_translation_from_html(word: &str, html: &str) -> String {
+pub fn parse_translation_from_html(word: &str, html: &str) -> Result<String, YdtError> {
     let document = Html::parse_document(html);
     let mut translations = Vec::new();
     let mut phonetics = Vec::new();
 
     if contains_cjk_ideograph(word) {
         let word_exp_selector =
-            match cached_selector(&WORD_EXP_CE_SELECTOR, "li.word-exp-ce.mcols-layout") {
-                Ok(selector) => selector,
-                Err(err) => return err,
-            };
-        let point_selector = match cached_selector(&POINT_SELECTOR, "a.point") {
-            Ok(selector) => selector,
-            Err(err) => return err,
-        };
+            cached_selector(&WORD_EXP_CE_SELECTOR, "li.word-exp-ce.mcols-layout")?;
+        let point_selector = cached_selector(&POINT_SELECTOR, "a.point")?;
 
         for exp in document.select(word_exp_selector) {
             if let Some(word_text) = exp.select(point_selector).next() {
@@ -119,34 +146,13 @@ pub fn parse_translation_from_html(word: &str, html: &str) -> String {
         }
     } else {
         let trans_container_selector =
-            match cached_selector(&TRANS_CONTAINER_SELECTOR, "div.trans-container") {
-                Ok(selector) => selector,
-                Err(err) => return err,
-            };
-        let phone_selector = match cached_selector(&PHONE_SELECTOR, "div.per-phone") {
-            Ok(selector) => selector,
-            Err(err) => return err,
-        };
-        let span_selector = match cached_selector(&SPAN_SELECTOR, "span") {
-            Ok(selector) => selector,
-            Err(err) => return err,
-        };
-        let phonetic_selector = match cached_selector(&PHONETIC_SELECTOR, "span.phonetic") {
-            Ok(selector) => selector,
-            Err(err) => return err,
-        };
-        let word_exp_selector = match cached_selector(&WORD_EXP_SELECTOR, "li.word-exp") {
-            Ok(selector) => selector,
-            Err(err) => return err,
-        };
-        let pos_selector = match cached_selector(&POS_SELECTOR, "span.pos") {
-            Ok(selector) => selector,
-            Err(err) => return err,
-        };
-        let trans_selector = match cached_selector(&TRANS_SELECTOR, "span.trans") {
-            Ok(selector) => selector,
-            Err(err) => return err,
-        };
+            cached_selector(&TRANS_CONTAINER_SELECTOR, "div.trans-container")?;
+        let phone_selector = cached_selector(&PHONE_SELECTOR, "div.per-phone")?;
+        let span_selector = cached_selector(&SPAN_SELECTOR, "span")?;
+        let phonetic_selector = cached_selector(&PHONETIC_SELECTOR, "span.phonetic")?;
+        let word_exp_selector = cached_selector(&WORD_EXP_SELECTOR, "li.word-exp")?;
+        let pos_selector = cached_selector(&POS_SELECTOR, "span.pos")?;
+        let trans_selector = cached_selector(&TRANS_SELECTOR, "span.trans")?;
 
         if let Some(container) = document.select(trans_container_selector).nth(0) {
             for phone_div in container.select(phone_selector) {
@@ -175,30 +181,22 @@ pub fn parse_translation_from_html(word: &str, html: &str) -> String {
     }
 
     if phonetics.is_empty() && translations.is_empty() {
-        "No results.".to_string()
+        Ok("No results.".to_string())
     } else {
         let phonetics_str = phonetics.join(" ");
         let translations_str = translations.join("\n");
         if phonetics_str.is_empty() {
-            translations_str
+            Ok(translations_str)
         } else if translations_str.is_empty() {
-            phonetics_str
+            Ok(phonetics_str)
         } else {
-            format!("{}\n{}", phonetics_str, translations_str)
+            Ok(format!("{}\n{}", phonetics_str, translations_str))
         }
     }
 }
 
-pub fn get_translation(word: &str) -> String {
-    let response = match fetch_with_fallback(word) {
-        Ok(resp) => resp,
-        Err(err) => return err,
-    };
-
-    let html = match response.text() {
-        Ok(text) => text,
-        Err(_) => return "Failed to read response.".to_string(),
-    };
-
+pub fn get_translation(word: &str) -> Result<String, YdtError> {
+    let response = fetch_with_fallback(word)?;
+    let html = response.text().map_err(YdtError::ReadResponse)?;
     parse_translation_from_html(word, &html)
 }
