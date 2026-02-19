@@ -5,17 +5,13 @@
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
-    naersk = {
-      url = "github:nix-community/naersk";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     git-hooks = {
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
   outputs =
-    { flake-parts, naersk, ... }@inputs:
+    { flake-parts, ... }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ inputs.git-hooks.flakeModule ];
       systems = [
@@ -32,7 +28,7 @@
           ...
         }:
         {
-          packages.ydt = pkgs.callPackage ./default.nix { inherit naersk; };
+          packages.ydt = pkgs.callPackage ./default.nix { };
           packages.default = self'.packages.ydt;
           apps.ydt = {
             type = "app";
