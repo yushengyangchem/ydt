@@ -12,8 +12,7 @@ const PROJECT_USER_AGENT: &str = concat!(
     env!("CARGO_PKG_VERSION"),
     " (+https://github.com/yushengyangchem/ydt)"
 );
-const BROWSER_USER_AGENT: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
+const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36";
 const YOUDAO_RESULT_URL: &str = "https://www.youdao.com/result";
 
 static WORD_EXP_CE_SELECTOR: OnceLock<Result<Selector, YdtError>> = OnceLock::new();

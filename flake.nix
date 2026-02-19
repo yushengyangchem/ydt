@@ -13,18 +13,11 @@
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    treefmt-nix = {
-      url = "github:numtide/treefmt-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
   outputs =
     { flake-parts, naersk, ... }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        inputs.git-hooks.flakeModule
-        inputs.treefmt-nix.flakeModule
-      ];
+      imports = [ inputs.git-hooks.flakeModule ];
       systems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -47,10 +40,7 @@
           };
           apps.default = self'.apps.ydt;
           devShells.default = pkgs.mkShell {
-            inputsFrom = [
-              config.pre-commit.devShell
-              config.treefmt.build.devShell
-            ];
+            inputsFrom = [ config.pre-commit.devShell ];
             packages = with pkgs; [
               cargo
               rustc
@@ -61,26 +51,15 @@
             check.enable = true;
             settings.hooks = {
               nixfmt.enable = true;
-              taplo.enable = true;
+              taplo = {
+                enable = true;
+                excludes = [ "Cargo.lock" ];
+              };
               prettier = {
                 enable = true;
                 excludes = [ "flake.lock" ];
               };
               rustfmt.enable = true;
-            };
-          };
-
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs = {
-              nixfmt.enable = true;
-              taplo.enable = true;
-              prettier.enable = true;
-              rustfmt.enable = true;
-              just.enable = true;
-            };
-            settings.global = {
-              excludes = [ ];
             };
           };
         };
