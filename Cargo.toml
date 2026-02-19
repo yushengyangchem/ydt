@@ -1,6 +1,6 @@
 [package]
 name = "ydt"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "A simple command-line dictionary tool powered by Youdao"
 license = "MIT"
