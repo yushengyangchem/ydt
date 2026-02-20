@@ -40,6 +40,7 @@
             packages = with pkgs; [
               cargo
               rustc
+              just
             ];
           };
 
