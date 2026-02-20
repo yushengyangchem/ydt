@@ -30,4 +30,17 @@ pkgs.rustPlatform.buildRustPackage {
     mkdir -p "$doc/share/doc/$pname"
     cp -r "$docdir/." "$doc/share/doc/$pname/"
   '';
+
+  meta = with pkgs.lib; {
+    description = cargoToml.package.description;
+    homepage = cargoToml.package.repository;
+    license = licenses.mit;
+    mainProgram = cargoToml.package.name;
+    maintainers = [
+      {
+        name = "yushengyangchem";
+        email = "yushengyangchem@gmail.com";
+      }
+    ];
+  };
 }
