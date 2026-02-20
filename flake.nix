@@ -9,9 +9,13 @@
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    gitignore = {
+      url = "github:hercules-ci/gitignore.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
   outputs =
-    { flake-parts, ... }@inputs:
+    { flake-parts, gitignore, ... }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ inputs.git-hooks.flakeModule ];
       systems = [
@@ -28,7 +32,7 @@
           ...
         }:
         {
-          packages.ydt = pkgs.callPackage ./default.nix { };
+          packages.ydt = pkgs.callPackage ./default.nix { inherit (gitignore.lib) gitignoreSource; };
           packages.default = self'.packages.ydt;
           apps.ydt = {
             type = "app";
