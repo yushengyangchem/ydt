@@ -1,11 +1,11 @@
-{ pkgs }:
+{ pkgs, gitignoreSource }:
 let
   cargoToml = fromTOML (builtins.readFile ./Cargo.toml);
 in
 pkgs.rustPlatform.buildRustPackage {
   pname = cargoToml.package.name;
   version = cargoToml.package.version;
-  src = ./.;
+  src = gitignoreSource ./.;
   cargoLock = {
     lockFile = ./Cargo.lock;
   };
