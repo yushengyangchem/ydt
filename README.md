@@ -2,6 +2,8 @@
 
 A simple [Youdao](https://www.youdao.com/) dict tool.
 
+Docs: <https://yushengyangchem.github.io/ydt/>
+
 ## Installation
 
 Install `ydt` with Cargo:
