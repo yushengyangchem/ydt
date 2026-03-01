@@ -31,6 +31,23 @@ jobs:
       - name: Build docs
         run: cargo doc --no-deps
 
+      - name: Add Pages root index
+        run: |
+          cat > target/doc/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=./ydt/index.html">
+            <title>Redirecting...</title>
+          </head>
+          <body>
+            <p>Redirecting to <a href="./ydt/index.html">ydt docs</a>...</p>
+          </body>
+          </html>
+          EOF
+          touch target/doc/.nojekyll
+
       - name: Upload docs artifact
         uses: actions/upload-pages-artifact@v3
         with:
