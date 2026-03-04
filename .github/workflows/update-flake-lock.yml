@@ -2,8 +2,7 @@ name: Update flake.lock
 
 on:
   schedule:
-    # Every Monday at 03:00 UTC
-    - cron: "0 3 * * 1"
+    - cron: "0 3 1 * *"
   workflow_dispatch:
 
 permissions:
@@ -13,18 +12,28 @@ permissions:
 jobs:
   update-lock-file:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
       - name: Update flake.lock
         run: nix flake update
+        continue-on-error: false
 
-      - name: Check for changes
+      - name: Run cargo test (via Nix dev env)
+        run: |
+          nix develop --command cargo test --all-features
+        continue-on-error: false
+
+      - name: Check for flake.lock changes
         id: changes
         run: |
           if git diff --quiet --exit-code flake.lock; then
@@ -42,10 +51,12 @@ jobs:
           body: |
             Automated update for `flake.lock`.
 
-            - Trigger: scheduled workflow
+            - Trigger: monthly scheduled workflow
             - Command: `nix flake update`
+            - Validation: `cargo test --all-features` passed
           branch: chore/update-flake-lock
           delete-branch: true
           labels: |
             dependencies
             nix
+          base: main
