@@ -9,4 +9,4 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 10
     commit-message:
-      prefix: "chore(actions): update versions"
+      prefix: "chore(actions)"
