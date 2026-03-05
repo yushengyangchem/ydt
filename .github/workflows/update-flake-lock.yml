@@ -46,6 +46,7 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
+          token: ${{ secrets.REPO_PAT }}
           commit-message: "chore(nix): update flake.lock"
           title: "chore(nix): update flake.lock"
           body: |
