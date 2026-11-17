@@ -14,6 +14,9 @@ pkgs.rustPlatform.buildRustPackage {
     "doc"
   ];
 
+  nativeBuildInputs = [ pkgs.pkg-config ];
+  buildInputs = [ pkgs.aws-lc ];
+
   postBuild = ''
     cargo doc --release --no-deps
   '';
